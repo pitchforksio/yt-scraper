@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# Scraped Data - Transcripts
+get_transcripts/transcripts/
+get_transcripts/transcript_unavailable/
+get_transcripts/*.txt
+get_transcripts/proxifly_working.txt
+get_transcripts/working_proxies.txt
+
+# Scraped Data - Video IDs
+scrape_video_ids/*.csv
+*.csv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Config files with API keys
+scraper_config.json
+validation_results.json

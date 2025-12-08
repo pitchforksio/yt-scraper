@@ -1,0 +1,4 @@
+anthropic>=0.18.0
+youtube-transcript-api
+requests
+requests[socks]

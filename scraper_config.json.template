@@ -1,0 +1,40 @@
+{
+    "youtube": {
+        "api_key": "YOUR_YOUTUBE_API_KEY",
+        "channel_id": "UCCjG8NtOig0USdrT5D1FpxQ",
+        "keywords": [
+            "Coulthart",
+            "Reality Check"
+        ]
+    },
+    "scraping": {
+        "start_date": "2021-01-01",
+        "csv_path": "coulthart_reality_check.csv",
+        "transcripts_dir": "transcripts"
+    },
+    "filtering": {
+        "qa_keywords": [
+            "question",
+            "email",
+            "post",
+            "voice",
+            "coming in",
+            "reaching out",
+            "sent by",
+            "from x",
+            "on x"
+        ]
+    },
+    "supabase": {
+        "api_base_url": "https://xajmsivavyqbjkfuwfdn.supabase.co",
+        "auth_token": "YOUR_SUPABASE_AUTH_TOKEN",
+        "subject_id": "9d6f9ab7-5f62-4977-a7ab-728fd19fe4df"
+    },
+    "annealing": {
+        "claude_api_key": "YOUR_CLAUDE_API_KEY",
+        "model": "claude-3-haiku-20240307",
+        "sample_size": 50,
+        "target_accuracy": 0.95,
+        "max_iterations": 5
+    }
+}

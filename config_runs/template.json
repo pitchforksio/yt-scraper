@@ -1,0 +1,57 @@
+{
+    "subject": {
+        "name": "SUBJECT_NAME_HERE",
+        "subject_id": "SUPABASE_SUBJECT_UUID_HERE",
+        "description": "Description of the subject/host"
+    },
+    "source": {
+        "channel_id": "YOUTUBE_CHANNEL_ID",
+        "channel_name": "Channel Name",
+        "show_name": "Show Name",
+        "base_transcripts_dir": "get_transcripts/transcripts"
+    },
+    "filter": {
+        "type": "filename_patterns",
+        "patterns": [
+            "pattern1",
+            "pattern2"
+        ],
+        "case_sensitive": false,
+        "description": "What makes a Q&A video for this subject"
+    },
+    "extraction": {
+        "model": "gpt-4o",
+        "prompt_style": "qa_moderator",
+        "speaker_labels": {
+            "host": "HostName",
+            "viewer": "Viewer",
+            "moderator": "ModeratorName"
+        },
+        "concise_format": true,
+        "split_multi_questions": true,
+        "min_confidence": 0.7
+    },
+    "output": {
+        "filtered_dir": "get_transcripts/transcripts_filtered_SUBJECT",
+        "extractions_dir": "outputs/qa_extractions_SUBJECT",
+        "csv_filename": "qa_dataset_SUBJECT.csv",
+        "naming_prefix": "subject_prefix"
+    },
+    "supabase": {
+        "project_id": "xajmsivavyqbjkfuwfdn",
+        "schema": "staging",
+        "tables": {
+            "pitches": "staging.pitches",
+            "answers": "staging.answers"
+        },
+        "pitch_type": "QUESTION",
+        "default_language": "en",
+        "default_status": "PENDING"
+    },
+    "processing": {
+        "batch_size": 50,
+        "max_retries": 3,
+        "timeout_seconds": 60,
+        "cost_limit_usd": 10.0
+    }
+}

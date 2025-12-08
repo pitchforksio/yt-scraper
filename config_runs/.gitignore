@@ -1,0 +1,8 @@
+# Ignore all JSON config files
+*.json
+
+# EXCEPT the template
+!template.json
+
+# Keep documentation
+!README.md

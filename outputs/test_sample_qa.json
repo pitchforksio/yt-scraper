@@ -1,0 +1,44 @@
+{
+    "pairs": [
+        {
+            "question": "Let's start with a question from Alex in California who asks: What is the current status of the UAP Disclosure Amendment, and do you think it will pass this year?",
+            "answer": "Great question, Alex. The UAP Disclosure Amendment, as proposed by Senator Schumer and others, is facing significant pushback from various defense and intelligence committees. The original amendment called for full disclosure of all government-held UAP information within a specific timeframe. However, what we're seeing now is a watered-down version that may not have the teeth the original amendment had. I remain cautiously optimistic, but there are powerful forces working against full transparency.",
+            "concise_question": "Viewer: What is the status of the UAP Disclosure Amendment?",
+            "concise_answer": "Ross: The amendment is facing pushback and may be watered down from its original form, but I remain cautiously optimistic.",
+            "q_lines": [
+                45,
+                48
+            ],
+            "a_lines": [
+                52,
+                67
+            ],
+            "confidence": 0.9,
+            "source": "gpt4o_full"
+        },
+        {
+            "question": "We have an email from Jennifer in New York asking: Have you heard anything new about the Lockheed Martin Skunk Works connection to UAP reverse engineering programs?",
+            "answer": "Jennifer, that's a topic I've been investigating for years. I can tell you that sources have confirmed to me that aerospace contractors, including Lockheed Martin's Skunk Works division, have been involved in programs examining non-human technology. The challenge is getting official confirmation. What I can say is that multiple whistleblowers have come forward to the Intelligence Community Inspector General with information about these programs. David Grusch's testimony to Congress touched on this, and I believe we're just scratching the surface of what's really been happening.",
+            "concise_question": "Viewer: Any updates on Lockheed Martin Skunk Works and UAP reverse engineering?",
+            "concise_answer": "Ross: Sources confirm aerospace contractors including Lockheed's Skunk Works have examined non-human technology, and whistleblowers have provided information to the IG.",
+            "q_lines": [
+                71,
+                73
+            ],
+            "a_lines": [
+                77,
+                91
+            ],
+            "confidence": 0.95,
+            "source": "gpt4o_full"
+        }
+    ],
+    "metadata": {
+        "model": "gpt-4o",
+        "total_pairs": 2,
+        "total_tokens": 1250,
+        "processing_time": 4.2,
+        "cost_estimate": 0.00625,
+        "source_file": "TEST_VIDEO_qa.json"
+    }
+}

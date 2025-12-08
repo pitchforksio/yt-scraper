@@ -17,7 +17,7 @@ DEFAULT_INPUT_CSV = "../scrape_video_ids/coulthart_reality_check.csv"
 DEFAULT_OUTPUT_DIR = "transcripts"
 PROXIFLY_HTTP_URL = "https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/protocols/http/data.txt"
 PROXIFLY_SOCKS5_URL = "https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/protocols/socks5/data.txt"
-TEST_URL = "https://www.google.com"
+TEST_URL = "https://www.youtube.com"
 PROXY_TEST_TIMEOUT = 5
 PROXY_QUEUE_SIZE = 10  # Keep this many validated proxies ready
 
@@ -45,7 +45,10 @@ class ProxyValidator(threading.Thread):
                 for line in response.text.strip().split('\n'):
                     line = line.strip()
                     if line and not line.startswith('#'):
-                        proxy = f"{protocol}://{line}"
+                        if not line.startswith(f"{protocol}://"):
+                            proxy = f"{protocol}://{line}"
+                        else:
+                            proxy = line
                         if proxy not in self.tested_proxies:
                             proxies.append(proxy)
             except:
@@ -64,6 +67,7 @@ class ProxyValidator(threading.Thread):
     def run(self):
         """Continuously validate proxies and add to queue."""
         print("[ProxyValidator] Starting background proxy validation...")
+        import concurrent.futures
         
         while not self.stop_event.is_set():
             # Only fetch more if queue is getting low
@@ -72,18 +76,38 @@ class ProxyValidator(threading.Thread):
                 fresh_proxies = self.fetch_fresh_proxies()
                 
                 if fresh_proxies:
-                    print(f"[ProxyValidator] Testing {len(fresh_proxies)} new proxies...")
-                    for proxy in fresh_proxies:
-                        if self.stop_event.is_set():
-                            break
-                            
-                        self.tested_proxies.add(proxy)
-                        if self.test_proxy(proxy):
-                            try:
-                                self.proxy_queue.put(proxy, timeout=1)
-                                print(f"[ProxyValidator] ✓ Added working proxy: {proxy}")
-                            except queue.Full:
+                    print(f"[ProxyValidator] Testing {len(fresh_proxies)} new proxies with 20 threads...")
+                    
+                    # Use ThreadPoolExecutor for parallel testing
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                        future_to_proxy = {executor.submit(self.test_proxy, proxy): proxy for proxy in fresh_proxies}
+                        
+                        for future in concurrent.futures.as_completed(future_to_proxy):
+                            if self.stop_event.is_set():
+                                executor.shutdown(wait=False)
                                 break
+                                
+                            proxy = future_to_proxy[future]
+                            self.tested_proxies.add(proxy)
+                            
+                            try:
+                                is_working = future.result()
+                                if is_working:
+                                    try:
+                                        self.proxy_queue.put(proxy, timeout=0.1)
+                                        print(f"[ProxyValidator] ✓ Added working proxy: {proxy}")
+                                        # If queue is full, stop processing this batch to save resources? 
+                                        # Or keep finding? Let's just fill queue.
+                                        if self.proxy_queue.full():
+                                            print("[ProxyValidator] Queue full, pausing validation.")
+                                            break
+                                    except queue.Full:
+                                        break
+                            except Exception as e:
+                                pass
+                                
+                    if not self.proxy_queue.empty():
+                         print("[ProxyValidator] Batch finished or queue full.")
                 else:
                     print("[ProxyValidator] No new proxies available, waiting...")
                     time.sleep(30)
@@ -134,6 +158,9 @@ def main():
     success_count = 0
     fail_count = 0
     
+    # State for hybrid mode
+    force_direct_mode = False
+    
     try:
         for i, video in enumerate(videos_to_process, 1):
             vid = video["video_id"]
@@ -149,88 +176,121 @@ def main():
             
             print(f"[{i}/{len(videos_to_process)}] Downloading {vid}: {title[:30]}...")
             
-            # Determine delay and proxy
-            if proxy_queue and not proxy_queue.empty():
-                # We have a working proxy, use short delay
-                delay = random.uniform(2, 5)
-                try:
-                    proxy_url = proxy_queue.get(timeout=1)
-                    print(f"   Using proxy: {proxy_url}")
-                    proxy_dict = {"http": proxy_url, "https": proxy_url}
-                    session = Session()
-                    session.proxies.update(proxy_dict)
-                    yt_api = YouTubeTranscriptApi(http_client=session)
-                except queue.Empty:
-                    # No proxy available, fall back to direct
-                    delay = random.uniform(60, 70)
-                    yt_api = YouTubeTranscriptApi()
-                    print(f"   No proxy available, using direct connection")
-            else:
-                # No proxy system or queue empty, use slow mode
-                delay = random.uniform(60, 70)
-                yt_api = YouTubeTranscriptApi()
+            # Retry loop for this video (Proxy -> Direct -> Proxy)
+            try_direct_fallback = False
             
-            print(f"   ...sleeping {delay:.1f}s...")
-            time.sleep(delay)
-            
-            try:
-                transcript = yt_api.fetch(vid, languages=['en', 'en-US'])
-                formatted_text = formatter.format_transcript(transcript)
+            while True:
+                # Determine connection mode
+                use_proxy = False
                 
-                with open(file_path, "w", encoding="utf-8") as out:
-                    out.write(formatted_text)
-                
-                success_count += 1
-                print(f"   ✓ Success")
-                
-            except Exception as e:
-                error_msg = str(e)
-                
-                # Categorize the error
-                is_unavailable = False
-                is_blocked = False
-                
-                # Check for transcript unavailable errors
-                if any(phrase in error_msg.lower() for phrase in [
-                    'transcripts are disabled',
-                    'no transcript found',
-                    'could not retrieve a transcript',
-                    'subtitles are disabled'
-                ]):
-                    is_unavailable = True
-                
-                # Check for blocking/connection errors
-                elif any(phrase in error_msg.lower() for phrase in [
-                    'ip has been blocked',
-                    'too many requests',
-                    'connection refused',
-                    'proxy error',
-                    'timeout'
-                ]):
-                    is_blocked = True
-                
-                if is_unavailable:
-                    # Create marker file in unavailable folder
-                    unavailable_dir = os.path.join(args.output, "../transcript_unavailable")
-                    os.makedirs(unavailable_dir, exist_ok=True)
-                    marker_file = os.path.join(unavailable_dir, f"{vid}.txt")
-                    
-                    with open(marker_file, "w", encoding="utf-8") as f:
-                        f.write(f"Video ID: {vid}\n")
-                        f.write(f"Title: {title}\n")
-                        f.write(f"Error: {error_msg[:200]}\n")
-                        f.write(f"Timestamp: {datetime.now().isoformat()}\n")
-                    
-                    print(f"   ⚠ Transcript unavailable (marked for later)")
-                    
-                elif is_blocked:
-                    fail_count += 1
-                    print(f"   ✗ Blocked/Connection Error: {error_msg[:80]}")
-                    # Could add longer delay here if needed
-                    
+                if force_direct_mode:
+                    use_proxy = False
+                    print(f"   [Mode] DIRECT (Forced)")
+                elif try_direct_fallback:
+                    use_proxy = False
+                    print(f"   [Mode] DIRECT (Fallback Retry)")
+                elif proxy_queue and not proxy_queue.empty():
+                    use_proxy = True
                 else:
-                    fail_count += 1
-                    print(f"   ✗ Unknown Error: {error_msg[:80]}")
+                    use_proxy = False
+                    print(f"   [Mode] DIRECT (No proxies available)")
+
+                # Reset fallback flag
+                if try_direct_fallback:
+                    try_direct_fallback = False
+
+                # Setup connection
+                yt_api = None
+                
+                if use_proxy:
+                    delay = random.uniform(2, 5)
+                    try:
+                        proxy_url = proxy_queue.get(timeout=1)
+                        print(f"   Using proxy: {proxy_url}")
+                        proxy_dict = {"http": proxy_url, "https": proxy_url}
+                        session = Session()
+                        session.proxies.update(proxy_dict)
+                        yt_api = YouTubeTranscriptApi(http_client=session)
+                    except queue.Empty:
+                        # Should not happen given logic above, but handle safe
+                        use_proxy = False
+                        delay = random.uniform(2, 5) # Quick probe if queue empty too
+                        yt_api = YouTubeTranscriptApi()
+                else:
+                    if force_direct_mode:
+                        # Direct mode (slow and safe)
+                        delay = random.uniform(60, 70)
+                    else:
+                        # Fallback probe (fast check)
+                        delay = random.uniform(2, 5)
+                    
+                    yt_api = YouTubeTranscriptApi()
+                
+                print(f"   ...sleeping {delay:.1f}s...")
+                time.sleep(delay)
+                
+                try:
+                    transcript = yt_api.fetch(vid, languages=['en', 'en-US'])
+                    formatted_text = formatter.format_transcript(transcript)
+                    
+                    with open(file_path, "w", encoding="utf-8") as out:
+                        out.write(formatted_text)
+                    
+                    success_count += 1
+                    print(f"   ✓ Success")
+                    
+                    if not use_proxy:
+                        if not force_direct_mode:
+                            print("   [Hybrid] Direct connection successful. Switching to DIRECT mode.")
+                            force_direct_mode = True
+                    
+                    break # Success, move to next video
+                    
+                except Exception as e:
+                    error_msg = str(e)
+                    
+                    # Categorize the error
+                    is_unavailable = False
+                    is_blocked = False
+                    
+                    if any(phrase in error_msg.lower() for phrase in [
+                        'transcripts are disabled', 'no transcript found',
+                        'could not retrieve a transcript', 'subtitles are disabled'
+                    ]):
+                        is_unavailable = True
+                    elif any(phrase in error_msg.lower() for phrase in [
+                        'ip has been blocked', 'too many requests', 
+                        'connection refused', 'proxy error', 'timeout',
+                        'connection reset'
+                    ]):
+                        is_blocked = True
+                    
+                    if is_unavailable:
+                        # Create marker file
+                        unavailable_dir = os.path.join(args.output, "../transcript_unavailable")
+                        os.makedirs(unavailable_dir, exist_ok=True)
+                        marker_file = os.path.join(unavailable_dir, f"{vid}.txt")
+                        with open(marker_file, "w", encoding="utf-8") as f:
+                            f.write(f"Video ID: {vid}\nTitle: {title}\nError: {error_msg[:200]}\nTimestamp: {datetime.now().isoformat()}\n")
+                        print(f"   ⚠ Transcript unavailable (marked for later)")
+                        break # Unrecoverable for this video
+                        
+                    elif is_blocked:
+                        if not use_proxy:
+                            # Direct failed
+                            print(f"   ✗ Direct IP BLOCKED: {error_msg[:80]}")
+                            force_direct_mode = False
+                            # Continue loop -> will try proxy next
+                        else:
+                            # Proxy failed
+                            print(f"   ✗ Proxy failed: {error_msg[:80]}")
+                            try_direct_fallback = True
+                            # Continue loop -> will try direct next
+                            
+                    else:
+                        fail_count += 1
+                        print(f"   ✗ Unknown Error: {error_msg[:80]}")
+                        break # Unknown error, skip to next video
     
     finally:
         # Cleanup

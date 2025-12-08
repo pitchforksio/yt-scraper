@@ -21,8 +21,11 @@ def fetch_proxies_from_url(url: str, protocol: str) -> List[str]:
         for line in response.text.strip().split('\n'):
             line = line.strip()
             if line and not line.startswith('#'):
-                # Format: ip:port, need to add protocol prefix
-                proxies.append(f"{protocol}://{line}")
+                # Format: ip:port or protocol://ip:port
+                if not line.startswith(f"{protocol}://"):
+                    proxies.append(f"{protocol}://{line}")
+                else:
+                    proxies.append(line)
         return proxies
     except Exception as e:
         print(f"Error fetching proxies: {e}")
@@ -78,8 +81,6 @@ def main():
                 working.append(proxy_url)
                 status = "✓ WORKING"
                 print(f"[{i}/{len(all_proxies)}] {proxy_url[:45]:45} {status}")
-            else:
-                failed.append((proxy_url, msg))
                 # Only print failures occasionally to reduce noise
                 if i % 50 == 0:
                     print(f"[{i}/{len(all_proxies)}] Tested {i} proxies, {len(working)} working so far...")

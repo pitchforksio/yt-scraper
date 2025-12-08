@@ -1,0 +1,91 @@
+{
+  "pairs": [
+    {
+      "question": "to speak to you confidentially and exchange information, how can they get information to you? >> That's great. That's a great question. Thank you so much. I I have a um Proton email and I'll give it to you right now over the uh it is moment of contact. me moment of contact at proton.me and we will be very mindful of any",
+      "answer": "national security issues or secrecy or whatever the request is. Clearly there are people who are operating under TSSCI top secret compartmented clearances who are forbidden from speaking about this.",
+      "concise_question": "Viewer: How can military personnel confidentially contact you with information?",
+      "concise_answer": "Ross: They can email me at momentofcontact@proton.me, and we'll respect any security concerns.",
+      "q_lines": [
+        1337,
+        1345
+      ],
+      "a_lines": [
+        1346,
+        1350
+      ],
+      "confidence": 0.9,
+      "source": "gpt4o_full"
+    },
+    {
+      "question": ">> Where's the proof? We have alien spaceships in our possession. We have bodies. Where and why can't I get the specifics to verify those claims?",
+      "answer": "So if the president waves or absolves my obligation to those NDAs and I get subpoenaed by Congress, some somebody on Capitol Hill, some committee either in the Senate or the House or the both to reveal everything I know that I learned from my investigations both unclassified and classified into the legacy UAP crash retrieval and hardware reverse engineering and NA NHI programs. I would do so if I could be waved from that or absolved in some fashion by presidential order. And if Congress subpoenas me, yes, I would go and tell him everything I know.",
+      "concise_question": "Viewer: Why can't we get specifics to verify claims of alien spaceships and bodies?",
+      "concise_answer": "Ross: If the president absolves me of my NDAs and Congress subpoenas me, I would reveal everything I know.",
+      "q_lines": [
+        1369,
+        1372
+      ],
+      "a_lines": [
+        1380,
+        1395
+      ],
+      "confidence": 0.9,
+      "source": "gpt4o_full"
+    },
+    {
+      "question": "come forward. So how significant is Eric Davis's comment?",
+      "answer": "It's extremely significant and you know I I asked them those specific questions",
+      "concise_question": "Viewer: How significant is Eric Davis's comment?",
+      "concise_answer": "Ross: It's extremely significant as it shows willingness to testify if given immunity.",
+      "q_lines": [
+        1412,
+        1413
+      ],
+      "a_lines": [
+        1414,
+        1415
+      ],
+      "confidence": 0.9,
+      "source": "gpt4o_full"
+    },
+    {
+      "question": "want the public to hear their evidence. And at the moment we seem a bit hamstrung because Congress isn't passing the disclosure laws that would allow the protection of these whistleblowers to",
+      "answer": ">> You imagine it's like, okay, there's nothing to see here. Fair enough. Pass the act. Pass the bill. The the disclosure, you know, UAP disclosure act. Like, pass it. I mean, why? Think do you think James from your knowledge",
+      "concise_question": "Viewer: Why isn't Congress passing laws to protect whistleblowers?",
+      "concise_answer": "Ross: If there's nothing to hide, they should pass the UAP disclosure act.",
+      "q_lines": [
+        1451,
+        1455
+      ],
+      "a_lines": [
+        1460,
+        1465
+      ],
+      "confidence": 0.9,
+      "source": "gpt4o_full"
+    },
+    {
+      "question": "do you think James from your knowledge of what's going on do you think President Trump's been got at on this issue or do you think as JD Vance the",
+      "answer": ">> so I'm I'm only speaking from personal experience I I've interviewed Carter and Ford and indirectly President Clinton Clinton and uh they all basically said that they made inquiries into the UAP or UFO phenomenon and were not happy with the answers they were getting. So, it's",
+      "concise_question": "Viewer: Has President Trump been influenced on the UAP issue?",
+      "concise_answer": "Ross: Past presidents were not satisfied with the answers they got, but times are changing.",
+      "q_lines": [
+        1465,
+        1468
+      ],
+      "a_lines": [
+        1476,
+        1482
+      ],
+      "confidence": 0.9,
+      "source": "gpt4o_full"
+    }
+  ],
+  "metadata": {
+    "model": "gpt-4o",
+    "total_pairs": 5,
+    "total_tokens": 22089,
+    "processing_time": 7.8236870765686035,
+    "cost_estimate": 0.11044500000000002
+  }
+}

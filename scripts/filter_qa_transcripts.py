@@ -21,7 +21,7 @@ def is_qa_transcript(filename: str) -> bool:
     - "Q and A" 
     - Video titles with question indicators
     """
-    filename_lower = filename.lower()
+    filename_lower = filename.lower().replace('_', ' ').replace('-', ' ')
     
     qa_patterns = [
         r'q\s*&\s*a',           # Q&A, Q & A, etc.
@@ -29,6 +29,11 @@ def is_qa_transcript(filename: str) -> bool:
         r'questions?\s*answered',  # Questions Answered
         r'viewer\s*questions?',    # Viewer Questions
         r'your\s*questions?',      # Your Questions
+        r'searching\s*for\s*answers', # searching for answers (exclude?) - wait, user might want this? 
+                                      # No, user wants Q&A. "searching for answers" is usually investigation.
+                                      # But "answers viewer questions" should match "viewer questions".
+        r'answers?\s+questions?',  # answers questions
+        r'answers?\s+viewer',      # answers viewer (catch truncated "viewer que...")
     ]
     
     for pattern in qa_patterns:
@@ -38,58 +43,70 @@ def is_qa_transcript(filename: str) -> bool:
     return False
 
 
-def filter_qa_transcripts(source_dir: str, target_dir: str, dry_run: bool = False) -> dict:
+def filter_qa_transcripts(source_dir: str, target_dir: str, discard_dir: str = None, dry_run: bool = False) -> dict:
     """
-    Scan source directory for Q&A transcripts and copy to target directory.
+    Scan source directory for Q&A transcripts and MOVE them to target or discard directory.
     
     Args:
-        source_dir: Path to directory containing all transcripts
-        target_dir: Path to output directory for filtered Q&A transcripts
-        dry_run: If True, only print what would be copied
-        
-    Returns:
-        Dictionary with stats: total_files, qa_files, copied_files
+        source_dir: Directory to scan (e.g. data/2_transcripts_raw)
+        target_dir: Directory for matches (e.g. data/4_extraction/queue)
+        discard_dir: Directory for non-matches (e.g. data/3_filtering/archive_discarded)
+        dry_run: If True, only simulate
     """
     source_path = Path(source_dir)
     target_path = Path(target_dir)
+    discard_path = Path(discard_dir) if discard_dir else None
     
     if not source_path.exists():
         raise FileNotFoundError(f"Source directory not found: {source_dir}")
     
-    # Create target directory if it doesn't exist
-    if not dry_run and not target_path.exists():
-        target_path.mkdir(parents=True)
-        print(f"📁 Created directory: {target_path}")
-    
-    # Scan for transcripts
+    # Create directories
+    if not dry_run:
+        target_path.mkdir(parents=True, exist_ok=True)
+        if discard_path:
+            discard_path.mkdir(parents=True, exist_ok=True)
+            
+    # Scan
     all_files = list(source_path.glob("*.txt"))
-    qa_files = [f for f in all_files if is_qa_transcript(f.name)]
     
     stats = {
         "total_files": len(all_files),
-        "qa_files": len(qa_files),
-        "copied_files": 0
+        "matches": 0,
+        "moved_to_target": 0,
+        "moved_to_discard": 0
     }
     
-    print(f"\n📊 Scan Results:")
-    print(f"   Total transcripts: {stats['total_files']}")
-    print(f"   Q&A transcripts found: {stats['qa_files']}")
-    print(f"   Percentage: {stats['qa_files']/stats['total_files']*100:.1f}%\n")
+    print(f"Scanning {len(all_files)} files in {source_dir}...")
     
-    if dry_run:
-        print("[DRY RUN MODE] - No files will be copied\n")
-    
-    # Copy files
-    for qa_file in qa_files:
-        target_file = target_path / qa_file.name
+    for f in all_files:
+        is_match = is_qa_transcript(f.name)
         
-        if dry_run:
-            print(f"   Would copy: {qa_file.name}")
+        if is_match:
+            stats["matches"] += 1
+            dest = target_path / f.name
+            action = "MATCH -> Queue"
+            stats["moved_to_target"] += 1
         else:
-            shutil.copy2(qa_file, target_file)
-            stats["copied_files"] += 1
-            print(f"   ✓ Copied: {qa_file.name}")
-    
+            if discard_path:
+                dest = discard_path / f.name
+                action = "NO MATCH -> Archive"
+                stats["moved_to_discard"] += 1
+            else:
+                action = "NO MATCH -> Skip"
+                dest = None
+                
+        if dry_run:
+            print(f"   [DRY] {f.name[:30]}... : {action}")
+        else:
+            if dest:
+                if str(f) == str(dest):
+                    # Same file, no move needed
+                    # print(f"   [SKIP] Same location: {f.name}")
+                    pass
+                else:
+                    shutil.move(str(f), str(dest))
+                    print(f"   ✓ {action}: {f.name}")
+                
     return stats
 
 
@@ -99,45 +116,52 @@ def main():
     )
     parser.add_argument(
         "--source",
-        default="../get_transcripts/transcripts",
-        help="Source directory with all transcripts"
+        default="data/2_transcripts_raw",
+        help="Inbox directory"
     )
     parser.add_argument(
         "--target",
-        default="../get_transcripts/transcripts_filtered",
-        help="Target directory for filtered Q&A transcripts"
+        default="data/4_extraction/queue",
+        help="Target directory for matches"
+    )
+    parser.add_argument(
+        "--discard",
+        default="data/3_filtering/archive_discarded",
+        help="Target directory for non-matches"
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Preview what would be copied without actually copying"
+        help="Simulate move"
     )
     
     args = parser.parse_args()
     
     # Convert relative paths to absolute
-    script_dir = Path(__file__).parent
+    script_dir = Path(__file__).parent.parent
     source_dir = (script_dir / args.source).resolve()
     target_dir = (script_dir / args.target).resolve()
+    discard_dir = (script_dir / args.discard).resolve() if args.discard else None
     
     print("=" * 80)
-    print("🔍 Q&A Transcript Filter")
+    print("🔍 Q&A SORTING HAT")
     print("=" * 80)
-    print(f"Source: {source_dir}")
-    print(f"Target: {target_dir}")
+    print(f"Inbox:   {source_dir}")
+    print(f"Queue:   {target_dir}")
+    print(f"Archive: {discard_dir}")
     
     try:
         stats = filter_qa_transcripts(
             str(source_dir),
             str(target_dir),
+            str(discard_dir),
             dry_run=args.dry_run
         )
         
         print(f"\n{'=' * 80}")
-        if args.dry_run:
-            print(f"✅ Dry run complete - {stats['qa_files']} files would be copied")
-        else:
-            print(f"✅ Filter complete - {stats['copied_files']} files copied")
+        print(f"✅ Sorting Complete")
+        print(f"   Moved to Queue:   {stats['moved_to_target']}")
+        print(f"   Moved to Archive: {stats['moved_to_discard']}")
         print(f"{'=' * 80}\n")
         
     except Exception as e:

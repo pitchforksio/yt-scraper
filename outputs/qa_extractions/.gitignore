@@ -1,6 +1,0 @@
-# Ignore all Q&A extraction JSON files
-*.json
-
-# Keep directory structure
-!.gitignore
-!README.md

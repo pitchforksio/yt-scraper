@@ -13,10 +13,25 @@ from pathlib import Path
 from typing import List, Dict, Any
 
 
+import re
+
+
 def load_config(config_path: str) -> dict:
     """Load configuration from JSON file."""
     with open(config_path, 'r') as f:
         return json.load(f)
+
+
+def clean_text(text: str) -> str:
+    """
+    Remove speaker prefixes like 'Viewer: ' or 'Ross: '.
+    Matches pattern: Start of string, one or more word chars/spaces, colon, space.
+    """
+    if not text:
+        return text
+    # Regex for "Name: " pattern at start of string
+    # We restrict to reasonable length (e.g. < 30 chars) to avoid stripping non-headers
+    return re.sub(r'^[\w\s]{1,30}:\s+', '', text)
 
 
 def escape_sql(text: str) -> str:
@@ -28,13 +43,16 @@ def escape_sql(text: str) -> str:
 
 def build_pitch_insert(row: Dict[str, str]) -> str:
     """Build SQL INSERT statement for staging.pitches."""
+    body_md = clean_text(row["body_md"])
+    concise = clean_text(row["concise"])
+    
     return f"""INSERT INTO staging.pitches (id, subject_id, type, body_md, concise, language, canonical_source_url, status)
 VALUES (
     '{row["id"]}',
     '{row["subject_id"]}',
     '{row["type"]}',
-    '{escape_sql(row["body_md"])}',
-    '{escape_sql(row["concise"])}',
+    '{escape_sql(body_md)}',
+    '{escape_sql(concise)}',
     '{row["language"]}',
     {f"'{escape_sql(row['canonical_source_url'])}'" if row.get('canonical_source_url') else 'NULL'},
     '{row["status"]}'
@@ -43,11 +61,15 @@ VALUES (
 
 def build_answer_insert(row: Dict[str, str]) -> str:
     """Build SQL INSERT statement for staging.answers."""
-    return f"""INSERT INTO staging.answers (id, pitch_id, body_md, source_url, status)
+    body_md = clean_text(row["body_md"])
+    concise = clean_text(row["concise"])
+    
+    return f"""INSERT INTO staging.answers (id, pitch_id, body_md, concise, source_url, status)
 VALUES (
     '{row["id"]}',
     '{row["pitch_id"]}',
-    '{escape_sql(row["body_md"])}',
+    '{escape_sql(body_md)}',
+    '{escape_sql(concise)}',
     {f"'{escape_sql(row['source_url'])}'" if row.get('source_url') else 'NULL'},
     '{row["status"]}'
 );"""
@@ -143,13 +165,21 @@ def upload_csv_to_supabase(
     pitches = data['pitches']
     answers = data['answers']
     
-    print(f"\n📊 CSV Data Loaded:")
+    print(f"📊 CSV Data Loaded:")
     print(f"   Pitches: {len(pitches)}")
     print(f"   Answers: {len(answers)}")
     print(f"   Total rows: {len(pitches) + len(answers)}\n")
     
-    # Generate batches
-    batches = generate_batch_sql(pitches, answers, batch_size)
+    batches = []
+    
+    # Add TRUNCATE batch if requested
+    if truncate:
+        batches.append({
+            'type': 'truncate',
+            'batch_num': 0,
+            'count': 0,
+            'sql': 'TRUNCATE staging.pitches, staging.answers CASCADE;'
+        })
     
     print(f"📦 Generated {len(batches)} SQL batches (max {batch_size} rows each)\n")
     
@@ -223,6 +253,11 @@ def main():
         help="Preview SQL without uploading"
     )
     parser.add_argument(
+        "--dump-json",
+        action="store_true",
+        help="Dump execution batches as JSON to stdout"
+    )
+    parser.add_argument(
         "--batch-size",
         type=int,
         default=50,
@@ -239,14 +274,21 @@ def main():
     subject_id = supabase_config.get("subject_id")
     
     if not subject_id:
-        print("❌ Error: subject_id not configured in scraper_config.json")
+        print("❌ Error: subject_id not configured in scraper_config.json", file=sys.stderr)
         sys.exit(1)
     
     # Verify CSV exists
     if not Path(args.input).exists():
-        print(f"❌ Error: CSV file not found: {args.input}")
+        print(f"❌ Error: CSV file not found: {args.input}", file=sys.stderr)
         sys.exit(1)
     
+    if args.dump_json:
+        # JSON dump mode for MCP execution
+        data = load_csv_data(args.input)
+        batches = generate_batch_sql(data['pitches'], data['answers'], args.batch_size)
+        print(json.dumps(batches, indent=2))
+        return
+
     print("=" * 80)
     print("🚀 Supabase Q&A CSV Upload")
     print("=" * 80)
@@ -273,7 +315,7 @@ def main():
         print(f"{'=' * 80}\n")
         
     except Exception as e:
-        print(f"\n❌ Error: {e}\n")
+        print(f"\n❌ Error: {e}\n", file=sys.stderr)
         raise
 
 

@@ -9,8 +9,8 @@
     },
     "scraping": {
         "start_date": "2021-01-01",
-        "csv_path": "coulthart_reality_check.csv",
-        "transcripts_dir": "transcripts"
+        "csv_path": "data/1_video_lists/coulthart_reality_check.csv",
+        "transcripts_dir": "data/2_transcripts_raw"
     },
     "filtering": {
         "qa_keywords": [

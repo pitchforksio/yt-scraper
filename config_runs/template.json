@@ -8,7 +8,7 @@
         "channel_id": "YOUTUBE_CHANNEL_ID",
         "channel_name": "Channel Name",
         "show_name": "Show Name",
-        "base_transcripts_dir": "get_transcripts/transcripts"
+        "base_transcripts_dir": "data/2_transcripts_raw"
     },
     "filter": {
         "type": "filename_patterns",
@@ -32,9 +32,10 @@
         "min_confidence": 0.7
     },
     "output": {
-        "filtered_dir": "get_transcripts/transcripts_filtered_SUBJECT",
-        "extractions_dir": "outputs/qa_extractions_SUBJECT",
-        "csv_filename": "qa_dataset_SUBJECT.csv",
+        "filtered_dir": "data/4_extraction/queue",
+        "discarded_dir": "data/3_filtering/archive_discarded",
+        "extractions_dir": "data/5_output/json",
+        "csv_filename": "data/5_output/csv/qa_dataset_SUBJECT.csv",
         "naming_prefix": "subject_prefix"
     },
     "supabase": {

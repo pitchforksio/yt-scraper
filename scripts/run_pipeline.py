@@ -55,7 +55,7 @@ class PipelineOrchestrator:
         self.filtered_dir = self.project_root / output_cfg["filtered_dir"]
         self.outputs_dir = self.project_root / "outputs"
         self.qa_outputs_dir = self.project_root / output_cfg["extractions_dir"]
-        self.csv_output = self.outputs_dir / output_cfg["csv_filename"]
+        self.csv_output = self.project_root / output_cfg["csv_filename"]
         
         # Filter patterns from run config
         self.filter_patterns = self.run_config["filter"]["patterns"]
@@ -191,6 +191,18 @@ class PipelineOrchestrator:
         for i, transcript_file in enumerate(transcripts, 1):
             output_file = self.qa_outputs_dir / f"{transcript_file.stem}_qa.json"
             
+            # Check if already processed (Smart Resume)
+            if output_file.exists():
+                print(f"[{i}/{len(transcripts)}] {transcript_file.name}")
+                print(f"   ✓ Already exists (Skipping)")
+                results.append({
+                    "success": True, 
+                    "file": transcript_file.name, 
+                    "output": output_file.name,
+                    "skipped": True
+                })
+                continue
+
             cmd = [
                 self.python,
                 "scripts/extract_qa_gpt4o.py",
@@ -227,6 +239,13 @@ class PipelineOrchestrator:
                     "output": output_file.name
                 })
                 print(f"   ✓ Extracted")
+                
+                # MOVE to Processed
+                import shutil
+                processed_dir = self.filtered_dir.parent / "processed"
+                processed_dir.mkdir(exist_ok=True)
+                shutil.move(str(transcript_file), str(processed_dir / transcript_file.name))
+                
             else:
                 print(f"   ✗ Failed: {result.stderr[:100]}")
                 results.append({
@@ -234,6 +253,12 @@ class PipelineOrchestrator:
                     "file": transcript_file.name,
                     "error": result.stderr
                 })
+                
+                # MOVE to Failed
+                import shutil
+                failed_dir = self.filtered_dir.parent / "failed"
+                failed_dir.mkdir(exist_ok=True)
+                shutil.move(str(transcript_file), str(failed_dir / transcript_file.name))
         
         successful = sum(1 for r in results if r["success"])
         

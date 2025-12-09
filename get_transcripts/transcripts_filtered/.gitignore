@@ -1,6 +1,0 @@
-# Ignore all filtered transcript files
-*.txt
-
-# Keep this directory in git with a README
-!.gitignore
-!README.md

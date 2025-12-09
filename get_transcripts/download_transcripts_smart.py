@@ -13,8 +13,8 @@ import requests
 from requests import Session
 
 # Configuration
-DEFAULT_INPUT_CSV = "../scrape_video_ids/coulthart_reality_check.csv"
-DEFAULT_OUTPUT_DIR = "transcripts"
+DEFAULT_INPUT_CSV = "data/1_video_lists/coulthart_reality_check.csv"
+DEFAULT_OUTPUT_DIR = "data/2_transcripts_raw"
 PROXIFLY_HTTP_URL = "https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/protocols/http/data.txt"
 PROXIFLY_SOCKS5_URL = "https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/protocols/socks5/data.txt"
 TEST_URL = "https://www.youtube.com"

@@ -58,12 +58,18 @@ def json_to_csv_rows(
         pitch_id = str(uuid.uuid4())
         answer_id = str(uuid.uuid4())
         
-        # Extract text (use concise versions for better clarity)
-        question = pair.get("concise_question", pair.get("question", ""))
-        answer = pair.get("concise_answer", pair.get("answer", ""))
+        # Extract text - Ensure we get both full and concise versions
+        full_question = pair.get("question", "")
+        concise_question = pair.get("concise_question", "")
         
-        # Create concise version (first 100 chars) for pitch
-        concise = question[:100] + "..." if len(question) > 100 else question
+        full_answer = pair.get("answer", "")
+        concise_answer = pair.get("concise_answer", "")
+        
+        # Fallback if concise missing (shouldn't happen with valid data)
+        if not concise_question:
+            concise_question = full_question
+        if not concise_answer:
+            concise_answer = full_answer
         
         # Confidence score
         confidence = pair.get("confidence", 0.9)
@@ -75,8 +81,8 @@ def json_to_csv_rows(
             "subject_id": subject_id,
             "pitch_id": "",  # Empty for pitches
             "type": "QUESTION",
-            "body_md": question,
-            "concise": concise,
+            "body_md": full_question,
+            "concise": concise_question,
             "language": "en",
             "canonical_source_url": source_url,
             "source_url": source_url,
@@ -92,8 +98,8 @@ def json_to_csv_rows(
             "subject_id": "",  # Empty for answers
             "pitch_id": pitch_id,
             "type": "",  # Empty for answers
-            "body_md": answer,
-            "concise": "",  # Empty for answers
+            "body_md": full_answer,
+            "concise": concise_answer,  # Now populating concise field (concise_answer from JSON)
             "language": "",  # Empty for answers
             "canonical_source_url": "",  # Empty for answers
             "source_url": source_url,

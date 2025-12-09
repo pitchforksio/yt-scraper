@@ -1,0 +1,34 @@
+# Ignore everything in data/
+*
+
+# But allow the directory structure itself (and this file)
+!.gitignore
+!*/
+
+# Allow input video lists (CSVs) as they are configuration/input
+!1_video_lists/
+!1_video_lists/*.csv
+
+# 2_transcripts_raw: Ignore all txt files, keep dir
+!2_transcripts_raw/
+2_transcripts_raw/*.txt
+
+# 3_filtering: Ignore all contents in subdirs
+!3_filtering/
+3_filtering/queue/*
+3_filtering/archive_discarded/*
+3_filtering/accepted/*
+
+# 4_extraction: Ignore all contents
+!4_extraction/
+4_extraction/queue/*
+4_extraction/processed/*
+4_extraction/failed/*
+
+# 5_output: Ignore JSONs and CSVs (generated data)
+!5_output/
+5_output/json/*
+5_output/csv/*
+
+# Keep .supadata_pending if it exists
+!2_transcripts_raw/.supadata_pending/

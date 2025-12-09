@@ -8,6 +8,9 @@ from openai import OpenAI
 from pathlib import Path
 from typing import List, Dict, Any
 
+# Retry configuration
+MAX_RETRIES = 2  # Will try 3 times total (initial + 2 retries)
+
 def extract_with_gpt4o(transcript_path: str, api_key: str) -> Dict[str, Any]:
     """Extract Q&A pairs using GPT-4o on the entire transcript."""
     
@@ -123,6 +126,89 @@ Set confidence 0.9 for clear Q&A pairs, 0.7 for uncertain ones."""
         }
     }
 
+def validate_pairs(pairs: List[Dict], lines: List[str]) -> tuple[int, int]:
+    """Validate that reconstructed Q&A pairs are not empty.
+    
+    Returns:
+        Tuple of (empty_questions_count, empty_answers_count)
+    """
+    empty_questions = 0
+    empty_answers = 0
+    
+    for pair in pairs:
+        if pair.get("q_lines") and pair.get("a_lines"):
+            q_start, q_end = pair["q_lines"]
+            a_start, a_end = pair["a_lines"]
+            
+            question = reconstruct_text(lines, q_start, q_end)
+            answer = reconstruct_text(lines, a_start, a_end)
+            
+            if not question.strip():
+                empty_questions += 1
+            if not answer.strip():
+                empty_answers += 1
+    
+    return empty_questions, empty_answers
+
+def extract_with_retry(transcript_path: str, api_key: str, max_retries: int = MAX_RETRIES) -> Dict[str, Any]:
+    """Extract Q&A pairs with retry logic for empty fields.
+    
+    Args:
+        transcript_path: Path to transcript file
+        api_key: OpenAI API key
+        max_retries: Maximum number of retries (default: 2)
+        
+    Returns:
+        Extraction result with metadata including retry count
+    """
+    # Read transcript once
+    with open(transcript_path, 'r', encoding='utf-8') as f:
+        transcript_text = f.read()
+    lines = transcript_text.split('\n')
+    
+    retry_count = 0
+    best_result = None
+    best_empty_count = float('inf')
+    
+    for attempt in range(max_retries + 1):
+        try:
+            # Extract with GPT-4o
+            result = extract_with_gpt4o(transcript_path, api_key)
+            
+            # Validate reconstructed text
+            empty_q, empty_a = validate_pairs(result.get("pairs", []), lines)
+            total_empty = empty_q + empty_a
+            
+            # Track best result
+            if total_empty < best_empty_count:
+                best_empty_count = total_empty
+                best_result = result
+                best_result["metadata"]["retry_count"] = retry_count
+                best_result["metadata"]["empty_questions"] = empty_q
+                best_result["metadata"]["empty_answers"] = empty_a
+            
+            # If no empty fields, we're done!
+            if total_empty == 0:
+                print(f"  ✅ All fields populated on attempt {attempt + 1}")
+                break
+            
+            # If we have empty fields and retries left, try again
+            if attempt < max_retries:
+                retry_count += 1
+                print(f"  ⚠️  Attempt {attempt + 1}: {empty_q} empty questions, {empty_a} empty answers. Retrying...")
+                time.sleep(1)  # Brief delay before retry
+            else:
+                print(f"  ⚠️  Final attempt: {empty_q} empty questions, {empty_a} empty answers remain")
+        
+        except Exception as e:
+            print(f"  ❌ Attempt {attempt + 1} failed: {str(e)}")
+            if attempt == max_retries:
+                raise
+            retry_count += 1
+            time.sleep(1)
+    
+    return best_result if best_result else result
+
 def reconstruct_text(lines: List[str], start: int, end: int) -> str:
     """Reconstruct text from line range."""
     return ' '.join(lines[start:end+1])
@@ -140,8 +226,8 @@ def main():
     print(f"🤖 Model: gpt-4o (full transcript)")
     print("=" * 80)
     
-    # Extract
-    result = extract_with_gpt4o(args.transcript, args.api_key)
+    # Extract with retry logic
+    result = extract_with_retry(args.transcript, args.api_key)
     
     # Read original lines for text reconstruction
     with open(args.transcript, 'r', encoding='utf-8') as f:
@@ -180,6 +266,9 @@ def main():
     print(f"\n✅ Extracted {len(final_pairs)} pairs")
     print(f"💰 Cost: ${result['metadata']['cost_estimate']:.4f}")
     print(f"⏱️  Time: {result['metadata']['processing_time']:.1f}s")
+    print(f"🔄 Retries: {result['metadata'].get('retry_count', 0)}")
+    if result['metadata'].get('empty_questions', 0) > 0 or result['metadata'].get('empty_answers', 0) > 0:
+        print(f"⚠️  Warning: {result['metadata'].get('empty_questions', 0)} empty questions, {result['metadata'].get('empty_answers', 0)} empty answers")
     print(f"💾 Saved to: {args.output}")
 
 if __name__ == "__main__":
